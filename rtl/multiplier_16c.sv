@@ -1,6 +1,6 @@
 //
 //  Authors: Jeffrey Claudio / ChatGPT
-//  Latest Revision: 11-13-2025
+//  Latest Revision: 11-15-2025
 //
 //  Project: multiplier_16c.sv
 //  Description: A 16-Cycle, Sequential, Radix-4 Multiplier
@@ -18,22 +18,22 @@ module multiplier_16c (
     output logic [63:0] product
 );
 
-    // P layout (66 bits): {carry1, carry0, ACC[31:0], Q[31:0]}
-    logic [65:0] P;
-
-    // temporaries & inputs held
-    logic [31:0] M;
-    logic  [4:0] count; // counts 16 -> needs 5 bits
+    // State
+    logic [31:0] ACC;       // accumulator
+    logic [31:0] Q;         // multiplier
+    logic  [1:0] C;         // top carry bits
+    logic [31:0] M;         // multiplicand
+    logic  [4:0] count;
     logic        busy;
 
-    // temporaries (module-scope logics used inside always)
-    logic [65:0] nextP_temp;
-    logic [65:0] nextP_shift;
-    logic [33:0] m_ext;     // M extended to 34 bits (2 top zeros)
-    logic [33:0] addend;    // 34-bit addend (0, M, 2M, 3M)
-    logic [33:0] acc_ext;   // ACC extended to 34 bits
-    logic [33:0] sum34;     // result of acc_ext + addend (fits 34 bits)
+    // Combinational signals
+    logic [33:0] acc_ext;   // ACC extended
+    logic [33:0] m_ext;     // M extended
+    logic [33:0] addend;
+    logic [33:0] sum34;
     logic  [1:0] q_low;
+    logic [65:0] Ptmp;
+    logic [65:0] Pshift;
 
     logic [31:0] newA, newB;
     logic        sign;
@@ -72,82 +72,73 @@ module multiplier_16c (
 
   end
 
-    // Sequential logic
-    always @(posedge clk) begin
-        if (reset | !enable) begin
-            P      <= 66'b0;
-            M      <= 32'b0;
-            count  <= 5'd0;
-            busy   <= 1'b0;
-            done   <= 1'b0;
-            result <= 64'b0;
+    // ------------------------------------------------------------
+    // Combinational datapath
+    // ------------------------------------------------------------
+    always_comb begin
+        // Extend ACC and M to 34 bits (no bit-selects)
+        acc_ext = {2'b00, ACC};
+        m_ext   = {2'b00, M};
 
-            // clear temporaries (not strictly necessary)
-            nextP_temp <= 66'b0;
-            nextP_shift <= 66'b0;
-            m_ext <= 34'b0;
-            addend <= 34'b0;
-            acc_ext <= 34'b0;
-            sum34 <= 34'b0;
-            q_low <= 2'b0;
+        // Extract Q[1:0] WITHOUT bit-select:
+        q_low = { Q[1], Q[0] };   // this is allowed
+
+        // Radix-4 selection
+        case (q_low)
+            2'b00: addend = 34'd0;
+            2'b01: addend = m_ext;
+            2'b10: addend = m_ext << 1;
+            2'b11: addend = m_ext + (m_ext << 1);
+        endcase
+
+        sum34 = acc_ext + addend;
+
+        // Build 66-bit Ptmp = {C, sum34, Q}
+        Ptmp = { C, sum34, Q };
+
+        // Shift right by 2 (OK: Icarus allows shifts)
+        Pshift = Ptmp >> 2;
+    end
+
+    // ------------------------------------------------------------
+    // Sequential state machine
+    // ------------------------------------------------------------
+    always_ff @(posedge clk) begin
+        if (reset | !enable) begin
+            ACC   <= 0;
+            Q     <= 0;
+            C     <= 0;
+            M     <= 0;
+            count <= 0;
+            busy  <= 0;
+            done  <= 0;
+            result <= 0;
         end else begin
-            // default
-            done <= 1'b0;
+            done <= 0;
 
             if (!busy) begin
-                // start on an enable while idle
                 if (enable) begin
+                    // Start multiplication
                     M     <= newA;
-                    // init P: carry1/carry0 = 0, ACC = 0, Q = opB
-                    P     <= {2'b00, 32'b0, newB};
+                    ACC   <= 32'd0;
+                    Q     <= newB;
+                    C     <= 2'b00;
                     count <= 5'd16;
                     busy  <= 1'b1;
-                    // done/result will be produced later
                 end
-            end else begin
-                // Compute nextP in temporaries (blocking ops)
-                // Extend M to 34 bits
-                m_ext = {2'b00, M};
+            end
+            else begin
+                // Update state after shift
+                {C, ACC, Q} <= Pshift;
 
-                // extract low two bits of Q
-                q_low = P[1:0];
-
-                // choose addend = 0, M, 2*M, or 3*M (34-bit width)
-                case (q_low)
-                    2'b00: addend = 34'b0;
-                    2'b01: addend = m_ext;
-                    2'b10: addend = (m_ext << 1);            // 2*M
-                    2'b11: addend = m_ext + (m_ext << 1);    // 3*M
-                    default: addend = 34'b0;
-                endcase
-
-                // ACC extended to 34 bits (top two bits zero + ACC[31:0])
-                acc_ext = {2'b00, P[63:32]};
-
-                // sum fits into 34 bits (proof in notes)
-                sum34 = acc_ext + addend;
-
-                // write the upper 34 bits of nextP_temp
-                // nextP_temp[65:32] <= sum34
-                nextP_temp = P;
-                nextP_temp[65:32] = sum34;
-
-                // Keep lower 32 bits (Q) as-is for now (nextP_temp[31:0] same as P[31:0])
-
-                // SHIFT RIGHT by 2: newP = {2'b00, nextP_temp[65:2]}
-                nextP_shift = {2'b00, nextP_temp[65:2]};
-
-                // Commit state with nonblocking assignments
-                P     <= nextP_shift;
                 count <= count - 1;
 
                 if (count == 1) begin
-                    busy   <= 1'b0;
-                    done   <= 1'b1;
-                    result <= nextP_shift[63:0]; // drop top two carry bits
+                    busy   <= 0;
+                    done   <= 1;
+                    result <= Pshift[63:0];
                 end
             end
         end
     end
-
 endmodule

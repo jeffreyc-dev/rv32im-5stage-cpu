@@ -25,7 +25,6 @@ module divider_32c (
     logic [32:0] rem_reg;   // 33-bit remainder
     logic [31:0] q_reg;     // quotient under construction
     logic [31:0] d_reg;     // divisor latched
-    logic [31:0] n_reg;     // dividend latched
     logic  [5:0] count;     // needs to hold values up to 32
     logic        running;   // internal busy flag
 
@@ -72,7 +71,6 @@ module divider_32c (
             rem_reg     <= 33'b0;
             q_reg       <= 32'b0;
             d_reg       <= 32'b0;
-            n_reg       <= 32'b0;
             count       <=  6'd0;
             running     <=  1'b0;
             done        <=  1'b0;
@@ -97,7 +95,6 @@ module divider_32c (
                     rem_reg <= 33'b0;
                     q_reg   <= 32'b0;
                     d_reg   <= 32'b0;
-                    n_reg   <= 32'b0;
                     count   <= 6'd0;
                 end else begin
                     // Normal start: initialize registers
@@ -105,7 +102,6 @@ module divider_32c (
                     done    <= 1'b0;
 
                     d_reg  <= newB;
-                    n_reg  <= newA;
                     // initial remainder = 0, quotient = dividend (we will shift MSB out)
                     rem_reg <= 33'b0;
                     q_reg   <= newA;
@@ -127,20 +123,20 @@ module divider_32c (
                 // We use 33-bit rem to hold the top bit.
 
                 // form next remainder by shifting left and bringing in MSB of q_reg
-                rem_next = { rem_reg[31:0], q_reg[31] }; // rem_reg[31:0] << 1 with q_reg[31] inserted
+                rem_next <= { rem_reg[31:0], q_reg[31] }; // rem_reg[31:0] << 1 with q_reg[31] inserted
                 // shift quotient left
-                q_next   = (q_reg << 1);
+                q_next   <= (q_reg << 1);
 
                 // compare rem_next and divisor (extend divisor to 33 bits)
-                sub = rem_next - {1'b0, d_reg}; // 33-bit subtraction
+                sub <= rem_next - {1'b0, d_reg}; // 33-bit subtraction
 
                 if (!sub[32]) begin
                     // rem_next >= d_reg  (sub MSB 0 indicates non-negative)
-                    rem_next = sub;       // take remainder = rem_next - d
-                    q_next[0] = 1'b1;    // set new LSB of quotient
+                    rem_next <= sub;       // take remainder = rem_next - d
+                    q_next[0] <= 1'b1;    // set new LSB of quotient
                 end else begin
                     // rem_next < d_reg; keep rem_next, q_next[0] already 0
-                    q_next[0] = 1'b0;
+                    q_next[0] <= 1'b0;
                 end
 
                 // commit

@@ -31,7 +31,7 @@ The original single-cycle CPU executed every instruction in a single long clock 
 
 ## 🧩 Microarchitecture Diagram
 
-![5-Stage Pipeline](docs/rv_five_stage.png)
+![5-Stage Pipeline](docs/rv_five_stage.svg)
 
 *Figure 1. RV32IM 5-Stage CPU Microarchitecture with Hazard Unit.*
 

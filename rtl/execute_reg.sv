@@ -75,7 +75,7 @@ module execute_reg
       JumprE        <=  1'b0;
       BranchE       <=  1'b0;
       ALUResultSrcE <=  2'b0;
-      ALUControlE   <=  5'b0;
+      ALUControlE   <=  OP_ADD;
       ALUSrcE       <=  1'b0;
       RD1E          <= 32'b0;
       RD2E          <= 32'b0;

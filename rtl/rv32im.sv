@@ -128,7 +128,7 @@ module rv32im
   control_unit u_control(
     .op(InstrD[6:0]),             // Op Codes
     .funct3(InstrD[14:12]),       // Function 3 Field
-    .funct7b0(InstrD[25]),          // Function 7 Field, bit-0
+    .funct7b0(InstrD[25]),        // Function 7 Field, bit-0
     .funct7b5(InstrD[30]),        // Function 7 Field, bit-5
     .RegWrite(RegWriteD),         // Register Write Enable
     .ResultSrc(ResultSrcD),       // Result Select
