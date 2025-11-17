@@ -1,6 +1,6 @@
 //
 //  Authors: Jeffrey Claudio
-//  Latest Revision: 11-11-2025
+//  Latest Revision: 11-16-2025
 //  
 //  Project: divider_1c.sv
 //  Description: One-Cycle 32-bit Divider
@@ -43,13 +43,16 @@ module divider_1c
              end
     endcase
 
-    u_quotient  = (denB!=32'b0) ? newA / newB :
-                                  32'hFFFFFFFF;
-    u_remainder = (denB!=32'b0) ? newA % newB :
-                                  newA        ;
+    u_quotient  = newA / newB;
+    u_remainder = newA % newB;
 
-      quotient  = sign ? ~u_quotient  + 1'b1 : u_quotient;
-      remainder = sign ? ~u_remainder + 1'b1 : u_remainder;
+      quotient  = (denB==32'b0) ? 32'hFFFFFFFF       :
+                           sign ? ~u_quotient + 1'b1 :
+                                   u_quotient;
+
+      remainder = (denB==32'b0) ? numA                :
+                           sign ? ~u_remainder + 1'b1 :
+                                   u_remainder;
 
   end
 
