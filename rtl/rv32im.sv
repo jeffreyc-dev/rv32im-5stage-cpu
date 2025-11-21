@@ -1,6 +1,6 @@
 //
 //  Authors: Jeffrey Claudio
-//  Latest Revision: 11-14-2025
+//  Latest Revision: 11-19-2025
 //  
 //  Project: rv32im.sv
 //  Description: RISC-V 32-bit Integer, Multiplication, Division Extensions
@@ -73,6 +73,10 @@ module rv32im
   logic  [1:0]                          ForwardAE    ,
                                         ForwardBE                                  ;
 
+  logic                                 br_predictE                                ;
+  logic                                 mispredictE                                ;
+/*
+  // Use this when predictor is disabled.
   // PCNextF
   mux3 u_pcnext(
     .d0(PCPlus4F),
@@ -80,6 +84,32 @@ module rv32im
     .d2(ALUResultE & ~1),
     .s(PCSrcE),
     .y(PCNextF)
+  );
+*/
+  // Gshare predictor
+  gshare u_gshare(
+    .clk(clk),                  // Clock
+    .reset(reset),              // Reset
+    .PCF(PCF),                  // PC in IF
+    .PCPlus4F(PCPlus4F),        // PC+4 in IF
+    .opF(InstrF[6:0]),          // opcode in IF
+    .PCE(PCE),                  // PC in EX
+    .PCPlus4E(PCPlus4E),        // PC+4 in EX
+    .PCSrcE(PCSrcE),            // PC Source in EX
+    .JumpE(JumpE),              // Jump detect from EX stage
+    .JumprE(JumprE),            // Jumpr detect from EX stage
+    .BranchE(BranchE),          // Branch detect from EX stage
+    .br_actualE(ALUResultE[0]), // Actual branch outcome from EX stage
+    .PCTargetE(PCTargetE),      // Branch/JAL address to write
+    .ALUResultE(ALUResultE),    // JALR address to write
+    .mispredictE(mispredictE),  // Branch misprediction
+    .br_predictE(br_predictE),  // Branch prediction
+    .PCNextF(PCNextF),          // Next fetch address
+    // Stall/Flush signals from Hazard Unit
+    .StallD(StallD),
+    .FlushD(FlushD),
+    .StallE(StallE),
+    .FlushE(FlushE)
   );
 
 //***************************************************************************
@@ -166,7 +196,6 @@ module rv32im
     RdD  = InstrD[11:7];
   end
 
-
   // Extend
   extend u_extend(
     .i_imm(InstrD[31:7]),       // Immediate Raw
@@ -234,7 +263,9 @@ module rv32im
     .Jumpr(JumprE),
     .Branch(BranchE),
     .br_taken(ALUResultE[0]),
-    .PCSrc(PCSrcE)
+    .br_predict(br_predictE),
+    .PCSrc(PCSrcE),
+    .mispredict(mispredictE)
   );
 
   // ALU
@@ -400,7 +431,9 @@ module rv32im
     .Rs1E(Rs1E),
     .Rs2E(Rs2E),
     .RdE(RdE),
-    .PCSrcE(PCSrcE),
+//   Use this when predictor is disabled (Look inside file too).
+//  .PCSrcE(PCSrcE),
+    .mispredictE(mispredictE),
     .ResultSrcE(ResultSrcE),    // 01 for reading from data memory
     .BusyE(BusyE),              // ALU busy signal
     .RdM(RdM),

@@ -1,6 +1,6 @@
 //
 //  Authors: Jeffrey Claudio
-//  Latest Revision: 11-14-2025
+//  Latest Revision: 11-18-2025
 //  
 //  Project: hazard_unit.sv
 //  Description: Hazard Unit
@@ -15,7 +15,8 @@ module hazard_unit
   input  logic [4:0] Rs1E,
   input  logic [4:0] Rs2E,
   input  logic [4:0] RdE,
-  input  logic [1:0] PCSrcE,
+//input  logic [1:0] PCSrcE,
+  input  logic       mispredictE,
   input  logic [1:0] ResultSrcE, // 01 for reading from data memory
   input  logic       BusyE,      // ALU busy signal
 
@@ -61,7 +62,8 @@ module hazard_unit
   end
 
   // Control Hazard for Jump/Branch
-  assign jbFlush = |PCSrcE;
+//assign jbFlush = |PCSrcE;
+  assign jbFlush = mispredictE;
 
   // Structural Hazard for multi-cycle ALU operations
   assign aluStall = BusyE;
