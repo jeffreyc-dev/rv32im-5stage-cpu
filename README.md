@@ -34,7 +34,7 @@ The original single-cycle CPU executed every instruction in a single long clock 
 
 ![5-Stage Pipeline](docs/rv-five-stage.svg)
 
-*Figure 1. RV32IM 5-Stage CPU Microarchitecture with Hazard Unit.*
+*Figure 1. RV32IM 5-Stage CPU Microarchitecture with Hazard Unit and Branch Prediction Unit.*
 
 ---
 
@@ -152,8 +152,7 @@ If an instruction uses a value immediately after a load:
 
 - ✔️ **Tower of Hanoi** — passed
 - ✔️ **Basic RV32IM Compliance Test** — passed
-- 🚧 **M-extension (MUL/DIV) stress tests** — in progress
-- 🚧 **Branch/Jump stress tests** — in progress
+- ✔️ **Branch/Jump stress tests** — passed
 
 ---
 
